@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clock</title>
+    <script src="./two.js"></script>
+</head>
+<body>
+
+<div id="canvas">
+</div>
+
+
+<script type="text/javascript">
+
+class Arm {
+  constructor(twoInstance, pos, armLength, armWidth) {
+    this.two = twoInstance;
+    this.length = armLength;
+    this.width = armWidth;
+    this.line = two.makeLine(pos.x, pos.y, pos.x + this.length, pos.y);
+    this.line.stroke = 'gainsboro';
+    this.line.linewidth = this.width;
+    this._angle = 0;
+    this.centerPoint = this.line.vertices[0];
+    this.endPoint = this.line.vertices[1];
+
+  }
+
+  setColor(newColor){
+    this.line.stroke = newColor;
+  }
+
+  get angle() {
+    return this._angle;
+  }
+
+  set angle(newAngle){
+
+    if (newAngle !== null){
+        this._angle = Math.round(newAngle);
+        let x = Math.cos(this._angle * Math.PI / 180) * this.length + this.centerPoint.x;
+        let y = Math.sin(this._angle * Math.PI / 180) * this.length + this.centerPoint.y;
+        this.endPoint.x = x;
+        this.endPoint.y = y;
+    }
+
+  }
+}
+
+class Clock {
+
+
+  constructor(twoInstance, pos, armLength, armWidth, animationSequenceLength) {
+    this.arm1 = new Arm(twoInstance, pos, armLength, armWidth);
+    this.arm2 = new Arm(twoInstance, pos, armLength, armWidth);
+    this.animationSequenceLength = animationSequenceLength;
+    this.lerp = {
+        from: {arm1: 0, arm2: 0},
+        to: {arm1: 0, arm2: 0},
+        endFrame: this.animationSequenceLength,
+    };
+
+  }
+
+
+
+  setColor(newColor){
+    this.arm1.setColor(newColor);
+    this.arm2.setColor(newColor);
+  }
+
+
+  setLerpTarget(angleArm1, angleArm2, frameCount){
+
+    // if (this.arm1.line.id == 'two-63'){
+    //     console.log('to ', this.lerp.to.arm1, ' end ', this.arm1.angle);
+    //     console.log('new target ', angleArm1);
+    // }
+    this.lerp = {
+        from: {arm1: this.arm1.angle, arm2: this.arm2.angle},
+        to: {arm1: angleArm1, arm2: angleArm2},
+        endFrame: frameCount + this.animationSequenceLength,
+    };
+
+  }
+
+    shortAngleDist(a0, a1) {
+        let max = 360;
+        let da = (a1 - a0) % max;
+        return 2*da % max - da;
+    }
+
+  tick(frameCount){
+
+    // let c1 = Math.round(Math.sin(frameCount/10) *16-5).toString(16);
+    // let c2 = Math.round(Math.cos(frameCount/10) *16-5).toString(16);
+    // let c3 = Math.round(Math.tan(frameCount/10) *16-5).toString(16);
+    // let c = '#' + c1 + c2 + c3;
+    // // console.log(c);
+    // this.setColor(c);
+    let t = 1.0 - (this.lerp.endFrame - frameCount)/this.animationSequenceLength;
+    
+    if (t<0 || t>1.0){
+        console.error('Bad t: ', t);
+    }
+    t = t <= 0.0 ? 0.0 : t >= 1.0 ? 1.0 : t; // clamp
+    let angle1 = this.lerp.from.arm1 + this.shortAngleDist(this.lerp.from.arm1, this.lerp.to.arm1) * t;
+    this.arm1.angle = angle1;
+    let angle2 = this.lerp.from.arm2 + this.shortAngleDist(this.lerp.from.arm2, this.lerp.to.arm2) * t;
+    this.arm2.angle = angle2;
+
+    // if (this.arm1.line.id == 'two-63'){
+    //     console.log('current ', angle1, ' t ', t);
+    //     console.log('*****\t', frameCount);
+    // }
+
+    // let angle1 = this.lerpTarget.from.arm1 + this.shortAngleDist(this.lerpTarget.from.arm1, this.lerpTarget.to.arm1) * t;
+    // this.arm1.angle = angle1;
+    // let angle2 = this.lerpTarget.from.arm2 + this.shortAngleDist(this.lerpTarget.from.arm2, this.lerpTarget.to.arm2) * t;
+    // this.arm2.angle = angle2;
+
+    }
+
+}
+
+
+
+
+/// Position: digit position 1-4
+function getDigitOffset(position, row){
+    let rightSidePadding = position < 3? 0 : 1;
+    return 1 + N_CLOCKS_X*row + (position-1) * 5 + rightSidePadding;
+}
+
+function getDotsOffset(row){
+    return getDigitOffset(3, row) - 3;
+}
+
+
+
+function dots(clocks, frameCount){
+
+    let offset = getDotsOffset(3);
+    clocks[offset + 2].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(180, 90, frameCount);
+
+    offset = getDotsOffset(4);
+    clocks[offset + 2].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(180, -90, frameCount);
+
+    offset = getDotsOffset(5);
+    clocks[offset + 2].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(180, 90, frameCount);
+
+    offset = getDotsOffset(6);
+    clocks[offset + 2].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(180, -90, frameCount);
+
+}
+
+
+function zero(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+    for (let i=3; i<7;i++){
+        offset = getDigitOffset(position, i);
+        clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+        clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+        clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+        clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+    }
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 1].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+
+
+
+function one(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 2].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 2].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+
+}
+
+
+
+
+function twoo(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 1].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 1].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, -90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 1].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 1].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+function three(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 1].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 1].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 1].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+
+function four(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 180, frameCount);
+    // clocks[offset + 3].setLerpTarget(0, 90);
+    // clocks[offset + 4].setLerpTarget(180, 90);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 1].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 3].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+
+function five(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 1].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 1].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+function six(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 180, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 1].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+function seven(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 3].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+
+
+function eight(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 1].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+
+
+function nine(clocks, position, frameCount){
+
+    let offset = getDigitOffset(position, 1);
+    clocks[offset + 1].setLerpTarget(0, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 3].setLerpTarget(0, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(180, 90, frameCount);
+
+    offset = getDigitOffset(position, 2);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+    offset = getDigitOffset(position, 3);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 4);
+    clocks[offset + 1].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 2].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(-90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 5);
+    clocks[offset + 1].setLerpTarget(-90, 0, frameCount);
+    clocks[offset + 2].setLerpTarget(180, 0, frameCount);
+    clocks[offset + 3].setLerpTarget(90, 180, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 6);
+    clocks[offset + 3].setLerpTarget(90, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(90, -90, frameCount);
+
+
+    offset = getDigitOffset(position, 7);
+    clocks[offset + 3].setLerpTarget(-90, 90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 90, frameCount);
+
+    offset = getDigitOffset(position, 8);
+    clocks[offset + 3].setLerpTarget(0, -90, frameCount);
+    clocks[offset + 4].setLerpTarget(-90, 180, frameCount);
+
+}
+
+
+function animationRandom(clocks, frameCount, animationCount){
+
+    if (frameCount % ANIMATION_SEQUENCE_LENGTH == 0){
+        for (let i=0; i<clocks.length; i++){
+            let clock = clocks[i];
+            let random1 = Math.floor(Math.random() * 360);
+            let random2 = Math.floor(Math.random() * 360);
+            clock.setLerpTarget(random1, random2, frameCount);
+        }        
+    }
+}
+
+function animationRotate(clocks, frameCount, animationCount){
+    for (let i=0; i<clocks.length; i++){
+        let clock = clocks[i];
+        let a1 = 45*animationCount-i;
+        let a2 = i+45*animationCount;
+        clock.setLerpTarget(a1, a2, frameCount);
+    }
+}
+
+
+
+function timeToFunction(num){
+    let functionMap = {
+        '0': zero,
+        '1': one,
+        '2': twoo,
+        '3': three,
+        '4': four,
+        '5': five,
+        '6': six,
+        '7': seven,
+        '8': eight,
+        '9': nine
+    };
+    let numString = ('0' + num).slice(-2);
+    let f1 = functionMap[numString[0]];
+    let f2 = functionMap[numString[1]];
+    return [f1, f2];
+}
+
+function showTime(clocks, frameCount){
+    let now = new Date();
+    let hour = now.getHours();
+    let minute = now.getMinutes();
+    let [m1, m2] = timeToFunction(minute);
+    let [h1, h2] = timeToFunction(hour);
+    h1(clocks, 1, frameCount);
+    h2(clocks, 2, frameCount);
+    dots(clocks, frameCount);
+    m1(clocks, 3, frameCount);
+    m2(clocks, 4, frameCount);
+}
+
+
+var animationCount = 0;
+function updateAnimation(clocks, frameCount){
+    animationCount += 1;
+
+    animationRandom(clocks, frameCount, animationCount);
+
+    if (frameCount % (ANIMATION_SEQUENCE_LENGTH*2) == 0){
+            showTime(clocks, frameCount);
+    }
+}
+
+var elem = document.getElementById('canvas');
+var params = { fullscreen: true, type:Two.Types.canvas};
+var two = new Two(params).appendTo(elem);
+const ARM_WIDTH = 2;
+const N_CLOCKS_X = 24;
+const N_CLOCKS_Y = 12;
+const ANIMATION_SEQUENCE_LENGTH = 180;
+let horizontal = Math.round(two.width / N_CLOCKS_X / 2);
+let vertical = Math.round(two.height / N_CLOCKS_Y / 2);
+const ARM_LENGTH = horizontal < vertical? horizontal : vertical;
+// console.log('width: ', two.width);
+
+
+var clocks =[];
+
+for (let y=0; y<N_CLOCKS_Y; y++){
+    for (let x=0; x<N_CLOCKS_X; x++){
+        const offset = ARM_LENGTH;
+        let posX = (ARM_LENGTH+offset)*x + ARM_LENGTH;
+        let posY = (ARM_LENGTH+offset)*y + ARM_LENGTH;
+        let clock = new Clock(two, {x:posX, y:posY}, ARM_LENGTH, ARM_WIDTH, ANIMATION_SEQUENCE_LENGTH);
+        clocks.push(clock);
+    }
+}
+
+
+
+
+two.bind('update', function(frameCount) {
+
+
+        updateAnimation(clocks, frameCount);
+    // console.log('delta ', timeDelta);
+    // if (frameCount % ANIMATION_SEQUENCE_LENGTH == 0){
+    //     updateAnimation(clocks, frameCount);
+    // }
+
+    for(let i=0; i < clocks.length; i++){
+        let clock = clocks[i];
+        clock.tick(frameCount);
+    }
+
+}).play();  // Finally, start the animation loop
+
+
+</script>
+
+</body>
+</html>
